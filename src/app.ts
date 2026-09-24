@@ -1,7 +1,6 @@
 import express from "express";
 
 import { errorHandler } from "./middlewares/error.middleware.js";
-import { AppError } from "./errors/AppError.js";
 
 const app = express();
 

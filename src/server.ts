@@ -1,10 +1,12 @@
 import "dotenv/config";
 
 import app from "./app.js";
+
 import {
     connectToDatabase,
     disconnectFromDatabase,
 } from "./config/db.js";
+
 import logger from "./config/logger.js";
 
 const PORT = process.env.PORT || 5000;
