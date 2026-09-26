@@ -4,6 +4,7 @@ import { prisma } from "../../config/db.js";
 import { AppError } from "../../errors/AppError.js";
 
 import type { LoginData, RegisterData } from "./auth.schema.js";
+import { generateAccessToken } from "../../utils/jwt.js";
 
 const findUserByEmail = async (email: string) => {
     return prisma.user.findUnique({
@@ -45,11 +46,39 @@ const loginUser = async (data: LoginData) => {
         throw new AppError("Invalid credentials", 401);
     }
 
-    // JWT will be generated here later
+    const accessToken = generateAccessToken({
+        userId: user.id,
+        name: user.name,
+        role: user.role,
+    });
+
+    return {
+        accessToken,
+    };
+};
+
+const getCurrentUser = async (userId: string) => {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true,
+        },
+    });
+
+    if (!user) {
+        throw new AppError("User not found", 404);
+    }
+
     return user;
 };
 
 export {
     registerUser,
     loginUser,
+    getCurrentUser,
 };

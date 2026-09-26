@@ -1,8 +1,9 @@
 import type { Request, Response } from "express";
 
 import {
-    loginUser,
     registerUser,
+    loginUser,
+    getCurrentUser,
 } from "./auth.service.js";
 
 const register = async (request: Request, response: Response) => {
@@ -15,11 +16,11 @@ const register = async (request: Request, response: Response) => {
 };
 
 const login = async (request: Request, response: Response) => {
-    const user = await loginUser(request.body);
+    const accessToken = await loginUser(request.body);
 
     return response.status(200).json({
         message: "User logged in successfully",
-        data: user,
+        data: { accessToken },
     });
 };
 
@@ -33,11 +34,22 @@ const refresh = async (_request: Request, response: Response) => {
     return response.status(501).json({
         message: "Not implemented yet",
     });
-};;
+};
+
+const getMe = async (request: Request, response: Response) => {
+    const userId = request.user!.userId;
+
+    const user = await getCurrentUser(userId);
+
+    return response.status(200).json({
+        data: user,
+    });
+};
 
 export {
     register,
     login,
     logout,
     refresh,
+    getMe,
 };
