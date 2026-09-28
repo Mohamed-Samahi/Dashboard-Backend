@@ -22,10 +22,10 @@ router.post("/register", validate(registerSchema), register);
 
 router.post("/login", validate(loginSchema), login);
 
+router.post("/refresh", refresh);
+
 router.get("/me", authenticate, getMe);
 
 router.post("/logout", logout);
-
-router.post("/refresh", refresh);
 
 export default router;

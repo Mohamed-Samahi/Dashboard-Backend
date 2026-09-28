@@ -1,4 +1,5 @@
 import express from "express";
+import cookieParser from "cookie-parser";
 
 import authRouter from "./features/auth/auth.route.js";
 
@@ -8,6 +9,7 @@ const app = express();
 
 // Global middleware
 app.use(express.json());
+app.use(cookieParser());
 
 // Routes
 app.use("/api/auth", authRouter);

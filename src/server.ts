@@ -7,6 +7,11 @@ import {
     disconnectFromDatabase,
 } from "./config/db.js";
 
+import {
+    connectToRedis,
+    disconnectFromRedis,
+} from "./config/redis.js";
+
 import logger from "./config/logger.js";
 
 const PORT = process.env.PORT || 5000;
@@ -22,6 +27,10 @@ process.on("uncaughtException", (error) => {
 const startServer = async () => {
     try {
         await connectToDatabase();
+        logger.info("Database connection established.");
+
+        await connectToRedis();
+        logger.info("Redis connection established.");
 
         const server = app.listen(PORT, () => {
             logger.info(`Server is running on port ${PORT}`);
@@ -60,7 +69,9 @@ const startServer = async () => {
             error,
         });
 
+        await disconnectFromRedis();
         await disconnectFromDatabase();
+
         process.exit(1);
     }
 };
