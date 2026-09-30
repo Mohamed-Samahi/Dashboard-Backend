@@ -14,13 +14,15 @@ import {
 import {
     deleteRefreshToken,
     getRefreshTokenUser,
+    storeRefreshToken,
 } from "../../utils/refreshToken.js";
-
-import { storeRefreshToken } from "../../utils/refreshToken.js";
 
 const findUserByEmail = async (email: string) => {
     return prisma.user.findUnique({
         where: { email },
+        include: {
+            role: true,
+        },
     });
 };
 
@@ -31,6 +33,22 @@ const registerUser = async (data: RegisterData) => {
         throw new AppError("User already exists", 409);
     }
 
+    const defaultRoleName = process.env.DEFAULT_USER_ROLE;
+
+    if (!defaultRoleName) {
+        throw new Error("DEFAULT_USER_ROLE is not defined");
+    }
+
+    const defaultRole = await prisma.role.findUnique({
+        where: {
+            name: defaultRoleName,
+        },
+    });
+
+    if (!defaultRole) {
+        throw new AppError("Default USER role is not configured", 500);
+    }
+
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
     return prisma.user.create({
@@ -38,6 +56,10 @@ const registerUser = async (data: RegisterData) => {
             name: data.name ?? null,
             email: data.email,
             password: hashedPassword,
+            roleId: defaultRole.id,
+        },
+        include: {
+            role: true,
         },
     });
 };
@@ -61,7 +83,7 @@ const loginUser = async (data: LoginData) => {
     const accessToken = generateAccessToken({
         userId: user.id,
         name: user.name,
-        role: user.role,
+        role: user.role.name,
     });
 
     const refreshToken = generateRefreshToken({
@@ -83,7 +105,20 @@ const getCurrentUser = async (userId: string) => {
             id: true,
             name: true,
             email: true,
-            role: true,
+            role: {
+                select: {
+                    name: true,
+                    permissions: {
+                        select: {
+                            permission: {
+                                select: {
+                                    key: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
             createdAt: true,
             updatedAt: true,
         },
@@ -93,7 +128,17 @@ const getCurrentUser = async (userId: string) => {
         throw new AppError("User not found", 404);
     }
 
-    return user;
+    return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role.name,
+        permissions: user.role.permissions.map(
+            (rolePermission) => rolePermission.permission.key
+        ),
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+    };
 };
 
 const refreshUserToken = async (refreshToken: string) => {
@@ -105,17 +150,18 @@ const refreshUserToken = async (refreshToken: string) => {
         throw new AppError("Invalid or expired refresh token", 401);
     }
 
-    // Check that the refresh token still exists in Redis
     const storedUserId = await getRefreshTokenUser(refreshToken);
 
     if (!storedUserId || storedUserId !== payload.userId) {
         throw new AppError("Invalid or expired refresh token", 401);
     }
 
-    // Get the latest user data
     const user = await prisma.user.findUnique({
         where: {
             id: payload.userId,
+        },
+        include: {
+            role: true,
         },
     });
 
@@ -123,22 +169,18 @@ const refreshUserToken = async (refreshToken: string) => {
         throw new AppError("User not found", 401);
     }
 
-    // Revoke the old refresh token
     await deleteRefreshToken(refreshToken);
 
-    // Generate a new refresh token
     const newRefreshToken = generateRefreshToken({
         userId: user.id,
     });
 
-    // Store the new refresh token in Redis
     await storeRefreshToken(user.id, newRefreshToken);
 
-    // Generate a new access token
     const accessToken = generateAccessToken({
         userId: user.id,
         name: user.name,
-        role: user.role,
+        role: user.role.name,
     });
 
     return {
