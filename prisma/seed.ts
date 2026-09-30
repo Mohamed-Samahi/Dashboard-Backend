@@ -29,43 +29,98 @@ const main = async () => {
         create: { name: "USER" },
     });
 
-    // 2. Create test permissions
-    const userRead = await prisma.permission.upsert({
-        where: { key: "user:read" },
-        update: {},
-        create: {
+    // 2. Create permissions
+    const permissionData = [
+        {
             key: "user:read",
             description: "Read users",
         },
-    });
-
-    const userCreate = await prisma.permission.upsert({
-        where: { key: "user:create" },
-        update: {},
-        create: {
+        {
             key: "user:create",
             description: "Create users",
         },
+        {
+            key: "role:read",
+            description: "Read roles",
+        },
+        {
+            key: "role:create",
+            description: "Create roles",
+        },
+        {
+            key: "role:update",
+            description: "Update roles",
+        },
+        {
+            key: "role:delete",
+            description: "Delete roles",
+        },
+        {
+            key: "permission:read",
+            description: "Read permissions",
+        },
+    ];
+
+    const permissions = await Promise.all(
+        permissionData.map((permission) =>
+            prisma.permission.upsert({
+                where: {
+                    key: permission.key,
+                },
+                update: {
+                    description: permission.description,
+                },
+                create: permission,
+            })
+        )
+    );
+
+    const permissionMap = new Map(
+        permissions.map((permission) => [
+            permission.key,
+            permission.id,
+        ])
+    );
+
+    // 3. Assign permissions to ADMIN
+    const adminPermissionKeys = [
+        "user:read",
+        "user:create",
+        "role:read",
+        "role:create",
+        "role:update",
+        "role:delete",
+        "permission:read",
+    ];
+
+    await prisma.rolePermission.createMany({
+        data: adminPermissionKeys.map((key) => ({
+            roleId: adminRole.id,
+            permissionId: permissionMap.get(key)!,
+        })),
+        skipDuplicates: true,
     });
 
-    // 3. Assign permissions to roles
+    // 4. Assign permissions to EMPLOYEE
     await prisma.rolePermission.createMany({
         data: [
-            // ADMIN
-            { roleId: adminRole.id, permissionId: userRead.id },
-            { roleId: adminRole.id, permissionId: userCreate.id },
-
-            // EMPLOYEE
-            { roleId: employeeRole.id, permissionId: userRead.id },
+            {
+                roleId: employeeRole.id,
+                permissionId: permissionMap.get("user:read")!,
+            },
         ],
         skipDuplicates: true,
     });
 
-    // 4. Create test users
+    // USER intentionally has no permissions
+
+    // 5. Create test users
     const password = await bcrypt.hash("Password123!", 10);
 
     await prisma.user.upsert({
-        where: { email: "admin@example.com" },
+        where: {
+            email: "admin@example.com",
+        },
         update: {},
         create: {
             name: "Admin",
@@ -76,7 +131,9 @@ const main = async () => {
     });
 
     await prisma.user.upsert({
-        where: { email: "employee@example.com" },
+        where: {
+            email: "employee@example.com",
+        },
         update: {},
         create: {
             name: "Employee",
@@ -87,7 +144,9 @@ const main = async () => {
     });
 
     await prisma.user.upsert({
-        where: { email: "user@example.com" },
+        where: {
+            email: "user@example.com",
+        },
         update: {},
         create: {
             name: "User",
