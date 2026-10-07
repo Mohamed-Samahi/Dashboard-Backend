@@ -15,10 +15,10 @@ app.use(cookieParser());
 // Routes
 
 // Authentication routes
-app.use("/api/auth", authRouter);
+app.use("/api/v1/auth", authRouter);
 
 // RBAC routes
-app.use("/api/rbac", rbacRouter);
+app.use("/api/v1/rbac", rbacRouter);
 
 // Global error handler
 // IMPORTANT: Must be registered after the routes
