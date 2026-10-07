@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+const permissionArraySchema = z
+    .array(z.string().trim().min(1))
+    .superRefine((permissions, ctx) => {
+        if (new Set(permissions).size !== permissions.length) {
+            ctx.addIssue({
+                code: "custom",
+                message: "Duplicate permissions are not allowed",
+            });
+        }
+    });
+
 const createRoleSchema = z.object({
     name: z
         .string()
@@ -7,9 +18,7 @@ const createRoleSchema = z.object({
         .min(2, "Role name is required")
         .transform((value) => value.toUpperCase()),
 
-    permissions: z
-        .array(z.string().trim().min(1))
-        .default([]),
+    permissions: permissionArraySchema.default([]),
 });
 
 const updateRoleSchema = z
@@ -17,13 +26,11 @@ const updateRoleSchema = z
         name: z
             .string()
             .trim()
-            .min(2)
+            .min(2, "Role name is required")
             .transform((value) => value.toUpperCase())
             .optional(),
 
-        permissions: z
-            .array(z.string().trim().min(1))
-            .optional(),
+        permissions: permissionArraySchema.optional(),
     })
     .refine(
         (data) =>
@@ -34,7 +41,12 @@ const updateRoleSchema = z
         }
     );
 
+const roleParamsSchema = z.object({
+    roleId: z.uuid("Invalid role ID"),
+});
+
 export {
     createRoleSchema,
     updateRoleSchema,
+    roleParamsSchema,
 };
