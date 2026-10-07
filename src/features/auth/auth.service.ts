@@ -21,7 +21,15 @@ const findUserByEmail = async (email: string) => {
     return prisma.user.findUnique({
         where: { email },
         include: {
-            role: true,
+            role: {
+                include: {
+                    permissions: {
+                        include: {
+                            permission: true,
+                        },
+                    },
+                },
+            },
         },
     });
 };
@@ -80,10 +88,15 @@ const loginUser = async (data: LoginData) => {
         throw new AppError("Invalid credentials", 401);
     }
 
+    const permissions = user.role.permissions.map(
+        (rolePermission) => rolePermission.permission.key
+    );
+
     const accessToken = generateAccessToken({
         userId: user.id,
-        name: user.name,
         role: user.role.name,
+        permissions,
+        authVersion: user.authVersion,
     });
 
     const refreshToken = generateRefreshToken({
@@ -161,7 +174,15 @@ const refreshUserToken = async (refreshToken: string) => {
             id: payload.userId,
         },
         include: {
-            role: true,
+            role: {
+                include: {
+                    permissions: {
+                        include: {
+                            permission: true,
+                        },
+                    },
+                },
+            },
         },
     });
 
@@ -177,10 +198,15 @@ const refreshUserToken = async (refreshToken: string) => {
 
     await storeRefreshToken(user.id, newRefreshToken);
 
+    const permissions = user.role.permissions.map(
+        (rolePermission) => rolePermission.permission.key
+    );
+
     const accessToken = generateAccessToken({
         userId: user.id,
-        name: user.name,
         role: user.role.name,
+        permissions,
+        authVersion: user.authVersion,
     });
 
     return {
