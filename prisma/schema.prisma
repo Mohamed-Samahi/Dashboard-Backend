@@ -21,8 +21,6 @@ model User {
   roleId String
   role   Role   @relation(fields: [roleId], references: [id])
 
-  authVersion Int @default(1)
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -30,6 +28,8 @@ model User {
 model Role {
   id   String @id @default(uuid())
   name String @unique
+
+  authVersion Int @default(1)
 
   users       User[]
   permissions RolePermission[]

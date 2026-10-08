@@ -94,9 +94,10 @@ const loginUser = async (data: LoginData) => {
 
     const accessToken = generateAccessToken({
         userId: user.id,
+        roleId: user.role.id,
         role: user.role.name,
         permissions,
-        authVersion: user.authVersion,
+        roleVersion: user.role.authVersion,
     });
 
     const refreshToken = generateRefreshToken({
@@ -204,9 +205,10 @@ const refreshUserToken = async (refreshToken: string) => {
 
     const accessToken = generateAccessToken({
         userId: user.id,
+        roleId: user.role.id,
         role: user.role.name,
         permissions,
-        authVersion: user.authVersion,
+        roleVersion: user.role.authVersion,
     });
 
     return {

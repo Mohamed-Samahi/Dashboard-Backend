@@ -1,8 +1,6 @@
 import { prisma } from "../../config/db.js";
 import { AppError } from "../../errors/AppError.js";
 
-import { setAuthVersion } from "../../utils/authVersion.js";
-
 const getUserPermissions = async (userId: string): Promise<string[]> => {
     const user = await prisma.user.findUnique({
         where: {

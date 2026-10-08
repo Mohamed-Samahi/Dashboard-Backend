@@ -1,12 +1,12 @@
 import { redis } from "../config/redis.js";
 
-const getAuthVersionKey = (userId: string) =>
-    `auth:user:${userId}:version`;
+const getRoleVersionKey = (roleId: string) =>
+    `auth:role:${roleId}:version`;
 
-const getAuthVersion = async (
-    userId: string
+const getRoleVersion = async (
+    roleId: string
 ): Promise<number | null> => {
-    const version = await redis.get(getAuthVersionKey(userId));
+    const version = await redis.get(getRoleVersionKey(roleId));
 
     if (version === null) {
         return null;
@@ -15,24 +15,17 @@ const getAuthVersion = async (
     return Number(version);
 };
 
-const setAuthVersion = async (
-    userId: string,
+const setRoleVersion = async (
+    roleId: string,
     version: number
 ): Promise<void> => {
     await redis.set(
-        getAuthVersionKey(userId),
+        getRoleVersionKey(roleId),
         version.toString()
     );
 };
 
-const incrementAuthVersion = async (
-    userId: string
-): Promise<number> => {
-    return redis.incr(getAuthVersionKey(userId));
-};
-
 export {
-    getAuthVersion,
-    setAuthVersion,
-    incrementAuthVersion,
+    getRoleVersion,
+    setRoleVersion,
 };

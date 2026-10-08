@@ -1,11 +1,14 @@
 import type { NextFunction, Request, Response } from "express";
 
 import { prisma } from "../config/db.js";
+
 import { AppError } from "../errors/AppError.js";
+
 import {
-    getAuthVersion,
-    setAuthVersion,
+    getRoleVersion,
+    setRoleVersion,
 } from "../utils/authVersion.js";
+
 import { verifyAccessToken } from "../utils/jwt.js";
 
 const authenticate = async (
@@ -33,34 +36,34 @@ const authenticate = async (
         throw new AppError("Invalid or expired token", 401);
     }
 
-    let currentAuthVersion = await getAuthVersion(
-        payload.userId
+    let currentRoleVersion = await getRoleVersion(
+        payload.roleId
     );
 
     // Redis cache miss: restore the version from PostgreSQL.
-    if (currentAuthVersion === null) {
-        const user = await prisma.user.findUnique({
+    if (currentRoleVersion === null) {
+        const role = await prisma.role.findUnique({
             where: {
-                id: payload.userId,
+                id: payload.roleId,
             },
             select: {
                 authVersion: true,
             },
         });
 
-        if (!user) {
-            throw new AppError("Invalid or expired token", 401);
+        if (!role) {
+            throw new AppError("Invalid or revoked token", 401);
         }
 
-        currentAuthVersion = user.authVersion;
+        currentRoleVersion = role.authVersion;
 
-        await setAuthVersion(
-            payload.userId,
-            currentAuthVersion
+        await setRoleVersion(
+            payload.roleId,
+            currentRoleVersion
         );
     }
 
-    if (payload.authVersion !== currentAuthVersion) {
+    if (payload.roleVersion !== currentRoleVersion) {
         throw new AppError("Invalid or revoked token", 401);
     }
 

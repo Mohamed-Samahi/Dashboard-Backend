@@ -2,9 +2,10 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 
 type AccessTokenPayload = {
     userId: string;
+    roleId: string;
     role: string;
     permissions: string[];
-    authVersion: number;
+    roleVersion: number;
 };
 
 type RefreshTokenPayload = {
