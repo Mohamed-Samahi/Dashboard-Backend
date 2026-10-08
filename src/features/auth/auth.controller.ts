@@ -76,7 +76,7 @@ const refresh = async (request: Request, response: Response) => {
 };
 
 const getMe = async (request: Request, response: Response) => {
-    const userId = request.user!.userId;
+    const userId = request.user!.id;
 
     const user = await getCurrentUser(userId);
 

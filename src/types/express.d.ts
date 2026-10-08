@@ -1,9 +1,13 @@
-import type { AccessTokenPayload } from "../utils/jwt.js";
+type AuthenticatedUser = {
+    id: string;
+    role: string;
+    permissions: string[];
+};
 
 declare global {
     namespace Express {
         interface Request {
-            user?: AccessTokenPayload;
+            user?: AuthenticatedUser;
         }
     }
 }
