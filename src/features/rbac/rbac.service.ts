@@ -1,6 +1,8 @@
 import { prisma } from "../../config/db.js";
 import { AppError } from "../../errors/AppError.js";
 
+import { setRoleVersion } from "../../utils/authVersion.js";
+
 const getUserPermissions = async (userId: string): Promise<string[]> => {
     const user = await prisma.user.findUnique({
         where: {
@@ -192,7 +194,7 @@ const updateRole = async (
         }
     }
 
-    return prisma.$transaction(async (tx) => {
+    const updatedRole = await prisma.$transaction(async (tx) => {
         if (permissions !== undefined) {
             await tx.rolePermission.deleteMany({
                 where: {
@@ -218,10 +220,14 @@ const updateRole = async (
                 ...(data.name !== undefined && {
                     name: data.name,
                 }),
+                authVersion: {
+                    increment: 1,
+                },
             },
             select: {
                 id: true,
                 name: true,
+                authVersion: true,
                 permissions: {
                     select: {
                         permission: {
@@ -235,6 +241,13 @@ const updateRole = async (
             },
         });
     });
+
+    await setRoleVersion(
+        updatedRole.id,
+        updatedRole.authVersion
+    );
+
+    return updatedRole;
 };
 
 const deleteRole = async (roleId: string) => {
