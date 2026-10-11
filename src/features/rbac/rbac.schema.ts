@@ -46,9 +46,7 @@ const roleParamsSchema = z.object({
 });
 
 const assignUserRoleSchema = z.object({
-    body: z.object({
-        roleId: z.string().uuid(),
-    }),
+    roleId: z.uuid("Invalid role ID"),
 });
 
 export {

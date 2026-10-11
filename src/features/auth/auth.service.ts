@@ -66,8 +66,18 @@ const registerUser = async (data: RegisterData) => {
             password: hashedPassword,
             roleId: defaultRole.id,
         },
-        include: {
-            role: true,
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            role: {
+                select: {
+                    id: true,
+                    name: true,
+                },
+            },
+            createdAt: true,
+            updatedAt: true,
         },
     });
 };
