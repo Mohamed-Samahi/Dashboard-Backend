@@ -40,6 +40,10 @@ const main = async () => {
             description: "Create users",
         },
         {
+            key: "user:update",
+            description: "Update users",
+        },
+        {
             key: "role:read",
             description: "Read roles",
         },
@@ -86,6 +90,7 @@ const main = async () => {
     const adminPermissionKeys = [
         "user:read",
         "user:create",
+        "user:update",
         "role:read",
         "role:create",
         "role:update",

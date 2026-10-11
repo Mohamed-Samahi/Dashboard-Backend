@@ -1,38 +1,11 @@
 import { prisma } from "../../config/db.js";
 import { AppError } from "../../errors/AppError.js";
 
-import { setRoleVersion } from "../../utils/authVersion.js";
-
-const getUserPermissions = async (userId: string): Promise<string[]> => {
-    const user = await prisma.user.findUnique({
-        where: {
-            id: userId,
-        },
-        select: {
-            role: {
-                select: {
-                    permissions: {
-                        select: {
-                            permission: {
-                                select: {
-                                    key: true,
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-    });
-
-    if (!user) {
-        throw new AppError("User not found", 404);
-    }
-
-    return user.role.permissions.map(
-        (rolePermission) => rolePermission.permission.key
-    );
-};
+import {
+    deleteRoleVersion,
+    setRoleVersion,
+    setUserVersion,
+} from "../../utils/authVersion.js";
 
 const getPermissions = async () => {
     return prisma.permission.findMany({
@@ -302,13 +275,97 @@ const deleteRole = async (roleId: string) => {
             },
         });
     });
+
+    await deleteRoleVersion(role.id);
+};
+
+const assignUserRole = async (
+    userId: string,
+    roleId: string
+) => {
+    const [user, role] = await Promise.all([
+        prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+        }),
+        prisma.role.findUnique({
+            where: {
+                id: roleId,
+            },
+        }),
+    ]);
+
+    if (!user) {
+        throw new AppError("User not found", 404);
+    }
+
+    if (!role) {
+        throw new AppError("Role not found", 404);
+    }
+
+    if (user.roleId === roleId) {
+        throw new AppError("User already has this role", 409);
+    }
+
+    const updatedUser = await prisma.user.update({
+        where: {
+            id: userId,
+        },
+        data: {
+            roleId,
+            authVersion: {
+                increment: 1,
+            },
+        },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            authVersion: true,
+            role: {
+                select: {
+                    id: true,
+                    name: true,
+                },
+            },
+        },
+    });
+
+    await setUserVersion(
+        updatedUser.id,
+        updatedUser.authVersion
+    );
+
+    return updatedUser;
+};
+
+const getUsers = async () => {
+    return prisma.user.findMany({
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            role: {
+                select: {
+                    id: true,
+                    name: true,
+                },
+            },
+            createdAt: true,
+        },
+        orderBy: {
+            createdAt: "desc",
+        },
+    });
 };
 
 export {
-    getUserPermissions,
     getPermissions,
     getRoles,
     createRole,
     updateRole,
     deleteRole,
+    assignUserRole,
+    getUsers,
 };

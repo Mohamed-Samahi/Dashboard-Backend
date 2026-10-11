@@ -5,7 +5,9 @@ import {
     deleteRole,
     getPermissions,
     getRoles,
-    updateRole
+    updateRole,
+    assignUserRole,
+    getUsers,
 } from "./rbac.service.js";
 
 const getAllPermissions = async (_request: Request, response: Response) => {
@@ -49,10 +51,40 @@ const deleteExistingRole = async (request: Request<{ roleId: string }>, response
     return response.status(204).send();
 };
 
+const assignRoleToUser = async (
+    request: Request,
+    response: Response
+) => {
+    const { userId } = request.params;
+    const { roleId } = request.body;
+
+    const user = await assignUserRole(
+        userId as string,
+        roleId
+    );
+
+    return response.status(200).json({
+        data: user,
+    });
+};
+
+const getAllUsers = async (
+    _request: Request,
+    response: Response
+) => {
+    const users = await getUsers();
+
+    return response.status(200).json({
+        data: users,
+    });
+};
+
 export {
     getAllPermissions,
     getAllRoles,
     createNewRole,
     updateExistingRole,
     deleteExistingRole,
+    assignRoleToUser,
+    getAllUsers,
 };

@@ -7,6 +7,8 @@ import { AppError } from "../errors/AppError.js";
 import {
     getRoleVersion,
     setRoleVersion,
+    getUserVersion,
+    setUserVersion,
 } from "../utils/authVersion.js";
 
 import { verifyAccessToken } from "../utils/jwt.js";
@@ -64,6 +66,37 @@ const authenticate = async (
     }
 
     if (payload.roleVersion !== currentRoleVersion) {
+        throw new AppError("Invalid or revoked token", 401);
+    }
+
+    let currentUserVersion = await getUserVersion(
+        payload.userId
+    );
+
+    // Redis cache miss: restore the version from PostgreSQL.
+    if (currentUserVersion === null) {
+        const user = await prisma.user.findUnique({
+            where: {
+                id: payload.userId,
+            },
+            select: {
+                authVersion: true,
+            },
+        });
+
+        if (!user) {
+            throw new AppError("Invalid or revoked token", 401);
+        }
+
+        currentUserVersion = user.authVersion;
+
+        await setUserVersion(
+            payload.userId,
+            currentUserVersion
+        );
+    }
+
+    if (payload.userVersion !== currentUserVersion) {
         throw new AppError("Invalid or revoked token", 401);
     }
 

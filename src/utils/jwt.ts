@@ -6,6 +6,7 @@ type AccessTokenPayload = {
     role: string;
     permissions: string[];
     roleVersion: number;
+    userVersion: number;
 };
 
 type RefreshTokenPayload = {

@@ -21,6 +21,8 @@ model User {
   roleId String
   role   Role   @relation(fields: [roleId], references: [id])
 
+  authVersion Int @default(1)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

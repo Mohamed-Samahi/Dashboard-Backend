@@ -98,6 +98,7 @@ const loginUser = async (data: LoginData) => {
         role: user.role.name,
         permissions,
         roleVersion: user.role.authVersion,
+        userVersion: user.authVersion,
     });
 
     const refreshToken = generateRefreshToken({
@@ -209,6 +210,7 @@ const refreshUserToken = async (refreshToken: string) => {
         role: user.role.name,
         permissions,
         roleVersion: user.role.authVersion,
+        userVersion: user.authVersion,
     });
 
     return {

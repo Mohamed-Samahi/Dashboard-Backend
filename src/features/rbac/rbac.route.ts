@@ -10,10 +10,16 @@ import {
     deleteExistingRole,
     getAllPermissions,
     getAllRoles,
-    updateExistingRole
+    updateExistingRole,
+    assignRoleToUser,
+    getAllUsers,
 } from "./rbac.controller.js";
 
-import { createRoleSchema, updateRoleSchema } from "./rbac.schema.js";
+import {
+    createRoleSchema,
+    updateRoleSchema,
+    assignUserRoleSchema,
+} from "./rbac.schema.js";
 
 const router = express.Router();
 
@@ -49,6 +55,19 @@ router.delete(
     "/roles/:roleId",
     authorize("role:delete"),
     deleteExistingRole
+);
+
+router.patch(
+    "/users/:userId/role",
+    authorize("user:update"),
+    validate(assignUserRoleSchema),
+    assignRoleToUser
+);
+
+router.get(
+    "/users",
+    authorize("user:read"),
+    getAllUsers
 );
 
 export default router;
