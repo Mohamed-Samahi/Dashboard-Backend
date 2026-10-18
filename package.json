@@ -11,9 +11,14 @@
     "postinstall": "prisma skills sync || exit 0",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:setup": "npm run docker:test:up && npm run db:test:migrate",
     "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run tests/integration",
-    "db:test:migrate": "node scripts/migrate-test.mjs"
+    "db:test:migrate": "node scripts/migrate-test.mjs",
+    "docker:dev:up": "docker compose -f docker-compose.yml up -d",
+    "docker:dev:down": "docker compose -f docker-compose.yml stop",
+    "docker:test:up": "docker compose -f docker-compose.test.yml up -d --wait",
+    "docker:test:down": "docker compose -f docker-compose.test.yml stop"
   },
   "keywords": [],
   "author": "",

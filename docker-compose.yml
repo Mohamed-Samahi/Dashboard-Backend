@@ -1,3 +1,5 @@
+name: dashboard-backend
+
 services:
   postgres:
     image: postgres:17
@@ -33,39 +35,6 @@ services:
     volumes:
       - redis_data:/data
 
-  postgres-test:
-    image: postgres:17
-    container_name: dashboard-postgres-test
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: dashboard_test
-    ports:
-      - '127.0.0.1:5434:5432'
-    volumes:
-      - postgres_test_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d dashboard_test']
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-  redis-test:
-    image: redis:8-alpine
-    container_name: dashboard-redis-test
-    restart: 'no'
-
-    ports:
-      - '127.0.0.1:6380:6379'
-
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
 volumes:
   postgres_data:
   redis_data:
-  postgres_test_data:
