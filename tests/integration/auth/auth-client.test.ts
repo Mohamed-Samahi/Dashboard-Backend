@@ -1,9 +1,9 @@
 
 import { describe, it, expect } from "vitest";
 
-import { createApiAgent } from "../helpers/api.helper.js";
-import { setupIntegrationTests } from "../setup/integration.js";
-import { createTestUser } from "../factories/user.factory.js";
+import { createApiAgent } from "../../helpers/api.helper.js";
+import { setupIntegrationTests } from "../../setup/integration.js";
+import { createTestUser } from "../../factories/user.factory.js";
 
 describe("Supertest Cookie Agent", () => {
     setupIntegrationTests();
