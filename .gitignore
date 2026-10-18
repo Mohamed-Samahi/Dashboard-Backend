@@ -38,3 +38,6 @@ skills-lock.json
 
 # Docker local overrides
 docker-compose.override.yml
+
+# Test coverage
+coverage/
