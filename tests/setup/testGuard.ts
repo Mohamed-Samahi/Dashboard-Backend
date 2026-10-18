@@ -24,5 +24,3 @@ export function assertTestEnvironment() {
         );
     }
 }
-
-assertTestEnvironment();

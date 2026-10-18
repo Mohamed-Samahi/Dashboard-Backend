@@ -27,7 +27,7 @@ export default defineConfig({
             ],
         },
 
-        setupFiles: ["./tests/setup/testGuard.ts"],
+        setupFiles: ["./tests/setup/global.ts"],
         fileParallelism: false,
     },
 });
