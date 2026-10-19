@@ -1,5 +1,7 @@
 import jwt, { type SignOptions } from "jsonwebtoken";
 
+import { randomUUID } from "node:crypto";
+
 type AccessTokenPayload = {
     userId: string;
     roleId: string;
@@ -51,6 +53,7 @@ const generateRefreshToken = (payload: RefreshTokenPayload) => {
 
     return jwt.sign(payload, secret, {
         expiresIn,
+        jwtid: randomUUID(),
     });
 };
 
