@@ -13,8 +13,8 @@ import {
 
 import {
     deleteRefreshToken,
-    getRefreshTokenUser,
     storeRefreshToken,
+    consumeRefreshToken
 } from "../../utils/refreshToken.js";
 
 const findUserByEmail = async (email: string) => {
@@ -175,7 +175,7 @@ const refreshUserToken = async (refreshToken: string) => {
         throw new AppError("Invalid or expired refresh token", 401);
     }
 
-    const storedUserId = await getRefreshTokenUser(refreshToken);
+    const storedUserId = await consumeRefreshToken(refreshToken);
 
     if (!storedUserId || storedUserId !== payload.userId) {
         throw new AppError("Invalid or expired refresh token", 401);
@@ -201,8 +201,6 @@ const refreshUserToken = async (refreshToken: string) => {
     if (!user) {
         throw new AppError("User not found", 401);
     }
-
-    await deleteRefreshToken(refreshToken);
 
     const newRefreshToken = generateRefreshToken({
         userId: user.id,

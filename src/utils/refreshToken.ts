@@ -57,9 +57,18 @@ const deleteRefreshToken = async (
     await redis.del(`refresh_token:${tokenHash}`);
 };
 
+const consumeRefreshToken = async (
+    refreshToken: string
+): Promise<string | null> => {
+    const tokenHash = hashRefreshToken(refreshToken);
+
+    return redis.getDel(`refresh_token:${tokenHash}`);
+};
+
 export {
     hashRefreshToken,
     storeRefreshToken,
     getRefreshTokenUser,
     deleteRefreshToken,
+    consumeRefreshToken
 };
