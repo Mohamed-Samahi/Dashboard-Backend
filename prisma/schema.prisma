@@ -15,8 +15,10 @@ datasource db {
 model User {
   id       String  @id @default(uuid())
   email    String  @unique
-  password String
+  password String?
   name     String?
+
+  oauthAccounts OAuthAccount[]
 
   roleId String
   role   Role   @relation(fields: [roleId], references: [id])
@@ -25,6 +27,21 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model OAuthAccount {
+  id                String @id @default(uuid())
+  provider          String
+  providerAccountId String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Role {

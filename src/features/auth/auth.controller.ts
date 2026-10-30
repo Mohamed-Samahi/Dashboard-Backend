@@ -8,6 +8,14 @@ import {
     logoutUser,
 } from "./auth.service.js";
 
+import {
+    generateGoogleAuthUrl,
+    storeGoogleOAuthState,
+    validateGoogleOAuthState,
+    exchangeGoogleAuthCode,
+    getGoogleIdentity,
+} from "./oauth/google.service.js";
+
 import { AppError } from "../../errors/AppError.js";
 
 const getRefreshCookieMaxAge = () => {
@@ -47,6 +55,64 @@ const login = async (request: Request, response: Response) => {
         message: "User logged in successfully",
         data: { accessToken },
     });
+};
+
+const googleLogin = async (
+    request: Request,
+    response: Response
+) => {
+    const { url, state } = generateGoogleAuthUrl();
+
+    await storeGoogleOAuthState(state);
+
+    response.cookie("google_oauth_state", state, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 5 * 60 * 1000,
+        path: "/api/v1/auth/google/callback",
+    });
+
+    return response.redirect(url);
+};
+
+const googleCallback = async (
+    request: Request,
+    response: Response
+) => {
+    const { code, state, error } = request.query;
+
+    response.clearCookie("google_oauth_state", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/api/v1/auth/google/callback",
+    });
+
+    if (error) {
+        throw new AppError("Google authentication was denied", 400);
+    }
+
+    if (typeof code !== "string" || typeof state !== "string") {
+        throw new AppError("Invalid Google OAuth callback", 400);
+    }
+
+    await validateGoogleOAuthState(
+        state,
+        request.cookies.google_oauth_state
+    );
+
+
+    const tokens = await exchangeGoogleAuthCode(code);
+
+
+    const googleIdentity = await getGoogleIdentity(tokens.id_token!);
+
+    return response.status(200).json({
+        message: "Google identity retrieved successfully",
+        data: googleIdentity,
+    });
+
 };
 
 const refresh = async (request: Request, response: Response) => {
@@ -104,6 +170,8 @@ const logout = async (request: Request, response: Response) => {
 export {
     register,
     login,
+    googleLogin,
+    googleCallback,
     logout,
     refresh,
     getMe,

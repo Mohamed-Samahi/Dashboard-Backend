@@ -2,6 +2,8 @@ import express from "express";
 
 import {
     getMe,
+    googleCallback,
+    googleLogin,
     login,
     logout,
     refresh,
@@ -21,6 +23,10 @@ const router = express.Router();
 router.post("/register", validate(registerSchema), register);
 
 router.post("/login", validate(loginSchema), login);
+
+router.get("/google", googleLogin);
+
+router.get("/google/callback", googleCallback);
 
 router.post("/refresh", refresh);
 

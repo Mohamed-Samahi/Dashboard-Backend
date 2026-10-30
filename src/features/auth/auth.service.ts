@@ -85,7 +85,7 @@ const registerUser = async (data: RegisterData) => {
 const loginUser = async (data: LoginData) => {
     const user = await findUserByEmail(data.email);
 
-    if (!user) {
+    if (!user || !user.password) {
         throw new AppError("Invalid credentials", 401);
     }
 
