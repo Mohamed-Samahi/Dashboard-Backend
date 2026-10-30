@@ -16,6 +16,10 @@ import {
     getGoogleIdentity,
 } from "./oauth/google.service.js";
 
+import {
+    authenticateOAuthUser
+} from "./oauth/oauth.service.js";
+
 import { AppError } from "../../errors/AppError.js";
 
 const getRefreshCookieMaxAge = () => {
@@ -32,6 +36,18 @@ const getRefreshCookieMaxAge = () => {
     return expiresInSeconds * 1000;
 };
 
+const setRefreshTokenCookie = (
+    response: Response,
+    refreshToken: string
+) => {
+    response.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: getRefreshCookieMaxAge(),
+    });
+};
+
 const register = async (request: Request, response: Response) => {
     const user = await registerUser(request.body);
 
@@ -44,12 +60,7 @@ const register = async (request: Request, response: Response) => {
 const login = async (request: Request, response: Response) => {
     const { accessToken, refreshToken } = await loginUser(request.body);
 
-    response.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: getRefreshCookieMaxAge(),
-    });
+    setRefreshTokenCookie(response, refreshToken);
 
     return response.status(200).json({
         message: "User logged in successfully",
@@ -102,15 +113,19 @@ const googleCallback = async (
         request.cookies.google_oauth_state
     );
 
-
     const tokens = await exchangeGoogleAuthCode(code);
-
 
     const googleIdentity = await getGoogleIdentity(tokens.id_token!);
 
+
+    const { accessToken, refreshToken } =
+        await authenticateOAuthUser(googleIdentity);
+
+    setRefreshTokenCookie(response, refreshToken);
+
     return response.status(200).json({
-        message: "Google identity retrieved successfully",
-        data: googleIdentity,
+        message: "Google authentication successful",
+        data: { accessToken },
     });
 
 };
@@ -127,12 +142,7 @@ const refresh = async (request: Request, response: Response) => {
         refreshToken: newRefreshToken,
     } = await refreshUserToken(refreshToken);
 
-    response.cookie("refreshToken", newRefreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: getRefreshCookieMaxAge(),
-    });
+    setRefreshTokenCookie(response, newRefreshToken);
 
     return response.status(200).json({
         data: {

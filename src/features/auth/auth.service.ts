@@ -1,3 +1,4 @@
+
 import bcrypt from "bcryptjs";
 
 import { prisma } from "../../config/db.js";
@@ -6,7 +7,11 @@ import { AppError } from "../../errors/AppError.js";
 import type { LoginData, RegisterData } from "./auth.schema.js";
 
 import {
-    generateAccessToken,
+    createUserAccessToken,
+    createUserSession,
+} from "./auth.tokens.js";
+
+import {
     generateRefreshToken,
     verifyRefreshToken,
 } from "../../utils/jwt.js";
@@ -14,7 +19,7 @@ import {
 import {
     deleteRefreshToken,
     storeRefreshToken,
-    consumeRefreshToken
+    consumeRefreshToken,
 } from "../../utils/refreshToken.js";
 
 const findUserByEmail = async (email: string) => {
@@ -48,9 +53,7 @@ const registerUser = async (data: RegisterData) => {
     }
 
     const defaultRole = await prisma.role.findUnique({
-        where: {
-            name: defaultRoleName,
-        },
+        where: { name: defaultRoleName },
     });
 
     if (!defaultRole) {
@@ -98,29 +101,7 @@ const loginUser = async (data: LoginData) => {
         throw new AppError("Invalid credentials", 401);
     }
 
-    const permissions = user.role.permissions.map(
-        (rolePermission) => rolePermission.permission.key
-    );
-
-    const accessToken = generateAccessToken({
-        userId: user.id,
-        roleId: user.role.id,
-        role: user.role.name,
-        permissions,
-        roleVersion: user.role.authVersion,
-        userVersion: user.authVersion,
-    });
-
-    const refreshToken = generateRefreshToken({
-        userId: user.id,
-    });
-
-    await storeRefreshToken(user.id, refreshToken);
-
-    return {
-        accessToken,
-        refreshToken,
-    };
+    return createUserSession(user);
 };
 
 const getCurrentUser = async (userId: string) => {
@@ -182,9 +163,7 @@ const refreshUserToken = async (refreshToken: string) => {
     }
 
     const user = await prisma.user.findUnique({
-        where: {
-            id: payload.userId,
-        },
+        where: { id: payload.userId },
         include: {
             role: {
                 include: {
@@ -208,18 +187,7 @@ const refreshUserToken = async (refreshToken: string) => {
 
     await storeRefreshToken(user.id, newRefreshToken);
 
-    const permissions = user.role.permissions.map(
-        (rolePermission) => rolePermission.permission.key
-    );
-
-    const accessToken = generateAccessToken({
-        userId: user.id,
-        roleId: user.role.id,
-        role: user.role.name,
-        permissions,
-        roleVersion: user.role.authVersion,
-        userVersion: user.authVersion,
-    });
+    const accessToken = createUserAccessToken(user);
 
     return {
         accessToken,
