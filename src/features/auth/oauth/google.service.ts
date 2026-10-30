@@ -8,6 +8,8 @@ import { googleOAuthClient } from "../../../config/google-oauth.js";
 
 import { redis } from "../../../config/redis.js";
 
+import { GaxiosError } from "gaxios";
+
 import { AppError } from "../../../errors/AppError.js";
 
 export type GoogleIdentity = {
@@ -73,13 +75,28 @@ const validateGoogleOAuthState = async (
 };
 
 const exchangeGoogleAuthCode = async (code: string) => {
-    const { tokens } = await googleOAuthClient.getToken(code);
+    try {
+        const { tokens } = await googleOAuthClient.getToken(code);
 
-    if (!tokens.id_token) {
-        throw new AppError("Google ID token is missing", 401);
+        if (!tokens.id_token) {
+            throw new AppError("Google ID token is missing", 401);
+        }
+
+        return tokens;
+    } catch (error) {
+        if (
+            error instanceof GaxiosError &&
+            error.response?.status === 400 &&
+            error.response.data?.error === "invalid_grant"
+        ) {
+            throw new AppError(
+                "Google authorization code is invalid or expired",
+                400
+            );
+        }
+
+        throw error;
     }
-
-    return tokens;
 };
 
 const verifyGoogleIdToken = async (idToken: string) => {

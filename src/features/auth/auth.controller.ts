@@ -93,6 +93,8 @@ const googleCallback = async (
 ) => {
     const { code, state, error } = request.query;
 
+    const cookieState = request.cookies.google_oauth_state;
+
     response.clearCookie("google_oauth_state", {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -100,23 +102,29 @@ const googleCallback = async (
         path: "/api/v1/auth/google/callback",
     });
 
+    // Validate state for both success and failure callbacks
+    if (typeof state !== "string") {
+        throw new AppError("Invalid Google OAuth state", 400);
+    }
+
+    await validateGoogleOAuthState(state, cookieState);
+
+    // Handle Google authentication cancellation or rejection
+    if (error === "access_denied") {
+        throw new AppError("Google authentication cancelled", 400);
+    }
+
     if (error) {
-        throw new AppError("Google authentication was denied", 400);
+        throw new AppError("Google authentication failed", 400);
     }
 
-    if (typeof code !== "string" || typeof state !== "string") {
-        throw new AppError("Invalid Google OAuth callback", 400);
+    if (typeof code !== "string") {
+        throw new AppError("Google authorization code is missing", 400);
     }
-
-    await validateGoogleOAuthState(
-        state,
-        request.cookies.google_oauth_state
-    );
 
     const tokens = await exchangeGoogleAuthCode(code);
 
     const googleIdentity = await getGoogleIdentity(tokens.id_token!);
-
 
     const { accessToken, refreshToken } =
         await authenticateOAuthUser(googleIdentity);
@@ -127,7 +135,6 @@ const googleCallback = async (
         message: "Google authentication successful",
         data: { accessToken },
     });
-
 };
 
 const refresh = async (request: Request, response: Response) => {
