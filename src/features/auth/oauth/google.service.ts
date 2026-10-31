@@ -12,6 +12,8 @@ import { GaxiosError } from "gaxios";
 
 import { AppError } from "../../../errors/AppError.js";
 
+import { z } from "zod";
+
 export type GoogleIdentity = {
     provider: "google";
     providerAccountId: string;
@@ -100,30 +102,44 @@ const exchangeGoogleAuthCode = async (code: string) => {
 };
 
 const verifyGoogleIdToken = async (idToken: string) => {
-    const ticket = await googleOAuthClient.verifyIdToken({
-        idToken,
-        audience: process.env.GOOGLE_CLIENT_ID!,
-    });
+    try {
+        const ticket = await googleOAuthClient.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID!,
+        });
 
-    const payload = ticket.getPayload();
+        const payload = ticket.getPayload();
 
-    if (!payload) {
+        if (!payload) {
+            throw new AppError("Invalid Google ID token", 401);
+        }
+
+        return payload;
+    } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
+
+        // Log unexpected verification errors internally if needed.
         throw new AppError("Invalid Google ID token", 401);
     }
-
-    return payload;
 };
+
+const googleIdentitySchema = z.object({
+    sub: z.string().min(1),
+    email: z.email(),
+    email_verified: z.literal(true),
+    name: z.string().nullish(),
+});
 
 const getGoogleIdentity = async (
     idToken: string
 ): Promise<GoogleIdentity> => {
     const payload = await verifyGoogleIdToken(idToken);
 
-    if (
-        !payload.sub ||
-        !payload.email ||
-        payload.email_verified !== true
-    ) {
+    const result = googleIdentitySchema.safeParse(payload);
+
+    if (!result.success) {
         throw new AppError(
             "Google account identity is invalid or email is not verified",
             401
@@ -132,9 +148,9 @@ const getGoogleIdentity = async (
 
     return {
         provider: "google",
-        providerAccountId: payload.sub,
-        email: payload.email,
-        name: payload.name ?? null,
+        providerAccountId: result.data.sub,
+        email: result.data.email,
+        name: result.data.name ?? null,
     };
 };
 

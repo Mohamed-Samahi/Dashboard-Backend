@@ -7,38 +7,56 @@ import type { GoogleIdentity } from "./google.service.js";
 import { createUserSession } from "../auth.tokens.js";
 
 const findOrCreateOAuthUser = async (identity: GoogleIdentity) => {
-    try {
-        // 1. Find existing OAuth account
-        const existingAccount = await prisma.oAuthAccount.findUnique({
-            where: {
-                provider_providerAccountId: {
-                    provider: identity.provider,
-                    providerAccountId: identity.providerAccountId,
-                },
-            },
+    const accountWhere = {
+        provider_providerAccountId: {
+            provider: identity.provider,
+            providerAccountId: identity.providerAccountId,
+        },
+    };
+
+    const userInclude = {
+        role: {
             include: {
-                user: {
+                permissions: {
                     include: {
-                        role: {
-                            include: {
-                                permissions: {
-                                    include: {
-                                        permission: true,
-                                    },
-                                },
-                            },
-                        },
+                        permission: true,
                     },
                 },
             },
-        });
+        },
+    } as const;
 
-        if (existingAccount) {
-            return existingAccount.user;
-        }
-
-        // 2. Create new user and OAuth account atomically
+    try {
         return await prisma.$transaction(async (tx) => {
+            // 1. Lock this provider identity for the transaction.
+            // Concurrent logins for the same identity are serialized.
+            const identityKey =
+                `${identity.provider}:${identity.providerAccountId}`;
+
+            await tx.$queryRaw`
+                SELECT 1 AS acquired
+                FROM (
+                    SELECT pg_advisory_xact_lock(
+                        hashtextextended(${identityKey}, 0)
+                    )
+                ) AS lock_guard
+            `;
+
+            // 2. Check for an existing linked OAuth account.
+            const existingAccount = await tx.oAuthAccount.findUnique({
+                where: accountWhere,
+                include: {
+                    user: {
+                        include: userInclude,
+                    },
+                },
+            });
+
+            if (existingAccount) {
+                return existingAccount.user;
+            }
+
+            // 3. Prevent automatic linking by email.
             const existingUser = await tx.user.findUnique({
                 where: { email: identity.email },
             });
@@ -50,6 +68,7 @@ const findOrCreateOAuthUser = async (identity: GoogleIdentity) => {
                 );
             }
 
+            // 4. Resolve the default application role.
             const defaultRoleName = process.env.DEFAULT_USER_ROLE;
 
             if (!defaultRoleName) {
@@ -67,6 +86,7 @@ const findOrCreateOAuthUser = async (identity: GoogleIdentity) => {
                 );
             }
 
+            // 5. Atomically create the user and OAuth identity.
             return tx.user.create({
                 data: {
                     email: identity.email,
@@ -80,45 +100,20 @@ const findOrCreateOAuthUser = async (identity: GoogleIdentity) => {
                         },
                     },
                 },
-                include: {
-                    role: {
-                        include: {
-                            permissions: {
-                                include: {
-                                    permission: true,
-                                },
-                            },
-                        },
-                    },
-                },
+                include: userInclude,
             });
         });
     } catch (error) {
-        // 3. Handle concurrent account creation
+        // 6. Additional protection against unique constraint races.
         if (
             error instanceof Prisma.PrismaClientKnownRequestError &&
             error.code === "P2002"
         ) {
             const account = await prisma.oAuthAccount.findUnique({
-                where: {
-                    provider_providerAccountId: {
-                        provider: identity.provider,
-                        providerAccountId: identity.providerAccountId,
-                    },
-                },
+                where: accountWhere,
                 include: {
                     user: {
-                        include: {
-                            role: {
-                                include: {
-                                    permissions: {
-                                        include: {
-                                            permission: true,
-                                        },
-                                    },
-                                },
-                            },
-                        },
+                        include: userInclude,
                     },
                 },
             });
