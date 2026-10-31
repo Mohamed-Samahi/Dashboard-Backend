@@ -13,6 +13,7 @@ type AccessTokenPayload = {
 
 type RefreshTokenPayload = {
     userId: string;
+    userVersion: number;
 };
 
 const generateAccessToken = (payload: AccessTokenPayload) => {

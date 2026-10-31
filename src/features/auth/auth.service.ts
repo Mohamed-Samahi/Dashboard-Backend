@@ -4,8 +4,6 @@ import bcrypt from "bcryptjs";
 import { prisma } from "../../config/db.js";
 import { AppError } from "../../errors/AppError.js";
 
-import type { LoginData, RegisterData } from "./auth.schema.js";
-
 import {
     createUserAccessToken,
     createUserSession,
@@ -21,6 +19,14 @@ import {
     storeRefreshToken,
     consumeRefreshToken,
 } from "../../utils/refreshToken.js";
+
+import type {
+    LoginData,
+    RegisterData,
+    ChangePasswordData,
+} from "./auth.schema.js";
+
+import { setUserVersion } from "../../utils/authVersion.js";
 
 const findUserByEmail = async (email: string) => {
     return prisma.user.findUnique({
@@ -181,8 +187,16 @@ const refreshUserToken = async (refreshToken: string) => {
         throw new AppError("User not found", 401);
     }
 
+    if (payload.userVersion !== user.authVersion) {
+        throw new AppError(
+            "Invalid or revoked refresh token",
+            401
+        );
+    }
+
     const newRefreshToken = generateRefreshToken({
         userId: user.id,
+        userVersion: user.authVersion,
     });
 
     await storeRefreshToken(user.id, newRefreshToken);
@@ -199,10 +213,99 @@ const logoutUser = async (refreshToken: string) => {
     await deleteRefreshToken(refreshToken);
 };
 
+
+const changeUserPassword = async (
+    userId: string,
+    data: ChangePasswordData
+): Promise<void> => {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+            id: true,
+            password: true,
+        },
+    });
+
+    if (!user) {
+        throw new AppError("User not found", 404);
+    }
+
+    // Google-only accounts have no local password.
+    if (!user.password) {
+        throw new AppError(
+            "This account does not have a password",
+            400
+        );
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(
+        data.currentPassword,
+        user.password
+    );
+
+    if (!isCurrentPasswordValid) {
+        throw new AppError(
+            "Current password is incorrect",
+            400
+        );
+    }
+
+    const isSamePassword = await bcrypt.compare(
+        data.newPassword,
+        user.password
+    );
+
+    if (isSamePassword) {
+        throw new AppError(
+            "New password must differ from current password",
+            400
+        );
+    }
+
+    const hashedPassword = await bcrypt.hash(
+        data.newPassword,
+        10
+    );
+
+    // Compare-and-swap protects against concurrent
+    // password changes using the same old password.
+    const result = await prisma.user.updateMany({
+        where: {
+            id: user.id,
+            password: user.password,
+        },
+        data: {
+            password: hashedPassword,
+            authVersion: {
+                increment: 1,
+            },
+        },
+    });
+
+    if (result.count !== 1) {
+        throw new AppError(
+            "Password was changed concurrently. Please try again.",
+            409
+        );
+    }
+
+    const updatedUser = await prisma.user.findUniqueOrThrow({
+        where: { id: user.id },
+        select: { authVersion: true },
+    });
+
+    // Update the version used by authentication middleware.
+    await setUserVersion(
+        user.id,
+        updatedUser.authVersion
+    );
+};
+
 export {
     registerUser,
     loginUser,
     getCurrentUser,
+    changeUserPassword,
     refreshUserToken,
     logoutUser,
 };

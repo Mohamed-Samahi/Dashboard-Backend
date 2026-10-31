@@ -40,6 +40,7 @@ const createUserSession = async (
 
     const refreshToken = generateRefreshToken({
         userId: user.id,
+        userVersion: user.authVersion,
     });
 
     await storeRefreshToken(user.id, refreshToken);

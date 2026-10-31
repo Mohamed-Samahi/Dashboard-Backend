@@ -6,6 +6,7 @@ import {
     getCurrentUser,
     refreshUserToken,
     logoutUser,
+    changeUserPassword,
 } from "./auth.service.js";
 
 import {
@@ -21,6 +22,12 @@ import {
 } from "./oauth/oauth.service.js";
 
 import { AppError } from "../../errors/AppError.js";
+
+import {
+    enforceResetAttemptLimit,
+    requestPasswordReset,
+    resetPassword,
+} from "./password-reset.service.js";
 
 const getRefreshCookieMaxAge = () => {
     const expiresInSeconds = Number(
@@ -184,6 +191,63 @@ const logout = async (request: Request, response: Response) => {
     return response.status(204).send();
 };
 
+const forgotPassword = async (
+    request: Request,
+    response: Response
+) => {
+    await requestPasswordReset(
+        request.body,
+        request.ip ?? "unknown"
+    );
+
+    return response.status(200).json({
+        message:
+            "If an eligible account exists, a password reset email will be sent.",
+    });
+};
+
+const confirmPasswordReset = async (
+    request: Request,
+    response: Response
+) => {
+    await enforceResetAttemptLimit(
+        request.ip ?? "unknown"
+    );
+
+    await resetPassword(request.body);
+
+    response.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+    });
+
+    return response.status(200).json({
+        message: "Password reset successfully. Please log in again.",
+    });
+};
+
+const changePassword = async (
+    request: Request,
+    response: Response
+) => {
+    await changeUserPassword(
+        request.user!.id,
+        request.body
+    );
+
+    response.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+    });
+
+    return response.status(200).json({
+        message:
+            "Password changed successfully. Please log in again.",
+    });
+};
+
 export {
     register,
     login,
@@ -192,4 +256,7 @@ export {
     logout,
     refresh,
     getMe,
+    forgotPassword,
+    confirmPasswordReset,
+    changePassword,
 };
